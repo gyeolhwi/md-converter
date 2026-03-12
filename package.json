@@ -1,15 +1,19 @@
 {
   "name": "md-converter",
-  "version": "1.0.0",
-  "description": "Markdown to DOCX/PDF 변환기",
+  "version": "2.0.0",
+  "description": "문서 변환기 (MD/TXT → DOCX/PDF, DOCX/PDF → MD)",
   "main": "convert.js",
   "scripts": {
     "convert": "node convert.js docx",
-    "convert:pdf": "node convert.js pdf"
+    "convert:pdf": "node convert.js pdf",
+    "convert:md": "node convert.js md"
   },
   "dependencies": {
     "marked": "^15.0.0",
     "html-to-docx": "^1.8.0",
-    "puppeteer": "^24.0.0"
+    "puppeteer": "^24.0.0",
+    "mammoth": "^1.8.0",
+    "turndown": "^7.2.0",
+    "pdf-parse": "^1.1.1"
   }
 }

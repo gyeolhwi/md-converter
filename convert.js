@@ -2,11 +2,18 @@ const fs = require("fs");
 const path = require("path");
 const { marked } = require("marked");
 
-const MD_DIR = path.join(__dirname, "01_TO_CONVERT");
+const INPUT_DIR = path.join(__dirname, "01_TO_CONVERT");
 const OUTPUT_DIR = path.join(__dirname, "02_RESULT");
 const DONE_DIR = path.join(__dirname, "03_COMPLETED");
 
 const FORMAT = (process.argv[2] || "docx").toLowerCase();
+
+// 지원 입력 확장자 (출력 형식별)
+const INPUT_EXTS = {
+  docx: [".md", ".txt"],
+  pdf: [".md", ".txt"],
+  md: [".docx", ".pdf"],
+};
 
 function buildHtml(htmlContent) {
   return `<!DOCTYPE html>
@@ -124,6 +131,33 @@ function buildHtml(htmlContent) {
 </style></head><body>${htmlContent}</body></html>`;
 }
 
+// ── 입력 → HTML 변환 ──
+
+async function inputToHtml(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === ".md") {
+    const content = fs.readFileSync(filePath, "utf-8");
+    return await marked(content);
+  }
+
+  if (ext === ".txt") {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const escaped = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return escaped
+      .split(/\n\n+/)
+      .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
+      .join("\n");
+  }
+
+  throw new Error(`지원하지 않는 입력 형식: ${ext}`);
+}
+
+// ── 출력 변환 ──
+
 async function convertToDocx(html, outputPath) {
   const HTMLtoDOCX = require("html-to-docx");
   const docxBuffer = await HTMLtoDOCX(html, null, {
@@ -148,56 +182,99 @@ async function convertToPdf(html, outputPath) {
   await browser.close();
 }
 
+async function convertToMd(filePath, outputPath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const TurndownService = require("turndown");
+  const turndown = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+  });
+
+  if (ext === ".docx") {
+    const mammoth = require("mammoth");
+    const result = await mammoth.convertToHtml({ path: filePath });
+    const md = turndown.turndown(result.value);
+    fs.writeFileSync(outputPath, md, "utf-8");
+    return;
+  }
+
+  if (ext === ".pdf") {
+    const pdfParse = require("pdf-parse");
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await pdfParse(dataBuffer);
+    // PDF는 텍스트 추출만 가능 (서식 유지 제한적)
+    fs.writeFileSync(outputPath, data.text, "utf-8");
+    return;
+  }
+
+  throw new Error(`MD 변환 미지원 형식: ${ext}`);
+}
+
+// ── 파일 변환 (통합) ──
+
 async function convertFile(filePath) {
-  const fileName = path.basename(filePath, ".md");
-  const mdContent = fs.readFileSync(filePath, "utf-8");
-  const htmlContent = await marked(mdContent);
-  const html = buildHtml(htmlContent);
+  const ext = path.extname(filePath).toLowerCase();
+  const fileName = path.basename(filePath, ext);
+  const outputPath = path.join(OUTPUT_DIR, `${fileName}.${FORMAT}`);
 
-  const ext = FORMAT;
-  const outputPath = path.join(OUTPUT_DIR, `${fileName}.${ext}`);
-
-  if (FORMAT === "pdf") {
-    await convertToPdf(html, outputPath);
+  if (FORMAT === "md") {
+    await convertToMd(filePath, outputPath);
   } else {
-    await convertToDocx(html, outputPath);
+    const htmlContent = await inputToHtml(filePath);
+    const html = buildHtml(htmlContent);
+    if (FORMAT === "pdf") {
+      await convertToPdf(html, outputPath);
+    } else {
+      await convertToDocx(html, outputPath);
+    }
   }
 
   const donePath = path.join(DONE_DIR, path.basename(filePath));
   fs.renameSync(filePath, donePath);
 
-  return { fileName, ext };
+  return { fileName, inputExt: ext, outputExt: FORMAT };
 }
 
+// ── 메인 ──
+
 async function main() {
-  if (!["docx", "pdf"].includes(FORMAT)) {
-    console.error(`지원하지 않는 형식: ${FORMAT} (docx, pdf 중 선택)`);
+  if (!INPUT_EXTS[FORMAT]) {
+    console.error(`지원하지 않는 출력 형식: ${FORMAT}`);
+    console.error(`사용 가능: docx, pdf, md`);
     process.exit(1);
   }
 
-  for (const dir of [MD_DIR, OUTPUT_DIR, DONE_DIR]) {
+  for (const dir of [INPUT_DIR, OUTPUT_DIR, DONE_DIR]) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
+  const validExts = INPUT_EXTS[FORMAT];
   const files = fs
-    .readdirSync(MD_DIR)
-    .filter((f) => f.toLowerCase().endsWith(".md"));
+    .readdirSync(INPUT_DIR)
+    .filter((f) => validExts.includes(path.extname(f).toLowerCase()));
 
   if (files.length === 0) {
-    console.log("변환할 MD 파일이 없습니다. [01_TO_CONVERT] 폴더에 파일을 넣어주세요.");
+    const extList = validExts.join(", ");
+    console.log(
+      `변환할 파일이 없습니다. [01_TO_CONVERT] 폴더에 ${extList} 파일을 넣어주세요.`
+    );
     return;
   }
 
-  console.log(`${files.length}개 파일 → ${FORMAT.toUpperCase()} 변환 시작...\n`);
+  console.log(
+    `${files.length}개 파일 → ${FORMAT.toUpperCase()} 변환 시작...\n`
+  );
 
   let success = 0;
   let fail = 0;
 
   for (const file of files) {
-    const filePath = path.join(MD_DIR, file);
+    const filePath = path.join(INPUT_DIR, file);
     try {
       const result = await convertFile(filePath);
-      console.log(`  [완료] ${result.fileName}.md -> ${result.fileName}.${result.ext}`);
+      console.log(
+        `  [완료] ${file} -> ${result.fileName}.${result.outputExt}`
+      );
       success++;
     } catch (err) {
       console.error(`  [실패] ${file}: ${err.message}`);
