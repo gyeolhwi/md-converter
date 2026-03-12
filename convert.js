@@ -11,16 +11,116 @@ const FORMAT = (process.argv[2] || "docx").toLowerCase();
 function buildHtml(htmlContent) {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-  body { font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; }
-  h1 { font-size: 24pt; }
-  h2 { font-size: 18pt; }
-  h3 { font-size: 14pt; }
-  code { background: #f4f4f4; padding: 2px 4px; font-family: 'Consolas', monospace; }
-  pre { background: #f4f4f4; padding: 10px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-  th { background: #f0f0f0; }
-  blockquote { border-left: 4px solid #ccc; margin-left: 0; padding-left: 16px; color: #555; }
+  body {
+    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+    line-height: 1.8;
+    color: #222;
+    font-size: 10.5pt;
+    max-width: 100%;
+  }
+
+  /* 제목 */
+  h1 {
+    font-size: 22pt;
+    color: #1a1a2e;
+    border-bottom: 3px solid #2c3e7a;
+    padding-bottom: 8px;
+    margin-top: 30px;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-size: 16pt;
+    color: #2c3e7a;
+    border-bottom: 2px solid #d1d5db;
+    padding-bottom: 6px;
+    margin-top: 28px;
+    margin-bottom: 12px;
+  }
+  h3 {
+    font-size: 13pt;
+    color: #374151;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    padding-left: 8px;
+    border-left: 4px solid #2c3e7a;
+  }
+
+  /* 단락 */
+  p { margin: 6px 0 10px 0; }
+
+  /* 표 */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0 20px 0;
+    font-size: 9.5pt;
+  }
+  th {
+    background-color: #2c3e7a;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 8px 10px;
+    border: 1px solid #2c3e7a;
+    text-align: left;
+  }
+  td {
+    padding: 7px 10px;
+    border: 1px solid #d1d5db;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td {
+    background-color: #f3f4f6;
+  }
+  tr:nth-child(odd) td {
+    background-color: #ffffff;
+  }
+
+  /* 인용문 */
+  blockquote {
+    border-left: 4px solid #2c3e7a;
+    background: #eef2ff;
+    margin: 12px 0;
+    padding: 10px 16px;
+    color: #1e3a5f;
+    font-size: 10pt;
+  }
+  blockquote p { margin: 4px 0; }
+
+  /* 구분선 */
+  hr {
+    border: none;
+    border-top: 2px solid #d1d5db;
+    margin: 24px 0;
+  }
+
+  /* 목록 */
+  ul, ol {
+    margin: 6px 0 12px 0;
+    padding-left: 24px;
+  }
+  li { margin-bottom: 4px; }
+
+  /* 코드 */
+  code {
+    background: #f1f5f9;
+    padding: 1px 4px;
+    font-family: 'Consolas', 'D2Coding', monospace;
+    font-size: 9pt;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+  }
+  pre {
+    background: #f1f5f9;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 9pt;
+  }
+  pre code { border: none; padding: 0; background: none; }
+
+  /* 강조 */
+  strong { color: #1a1a2e; }
 </style></head><body>${htmlContent}</body></html>`;
 }
 
